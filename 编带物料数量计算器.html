@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMD 编带芯片数量计算器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .calc {
+    width: 100%;
+    max-width: 380px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  }
+  .calc h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+  .calc .formula {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 24px;
+    font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+    background: #f5f5f5;
+    padding: 10px 14px;
+    border-radius: 8px;
+    word-break: break-all;
+  }
+  .input-group {
+    margin-bottom: 16px;
+  }
+  .input-group label {
+    display: block;
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .input-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    background: #fff;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-group input:focus {
+    border-color: #1a1a1a;
+  }
+  .input-group .hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+  .result-box {
+    background: #f8f8f8;
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    margin-top: 24px;
+    border: 1px solid #e5e5e5;
+  }
+  .result-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+  .result-value {
+    font-size: 44px;
+    font-weight: 700;
+    color: #1a1a1a;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-unit {
+    font-size: 16px;
+    color: #666;
+    margin-left: 4px;
+  }
+  .result-sub {
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .result-sub.ok { color: #2a9d4a; }
+  .result-sub.warn { color: #e67e22; }
+  .result-sub.bad { color: #e74c3c; }
+  .divider {
+    height: 1px;
+    background: #e5e5e5;
+    margin: 16px 0;
+  }
+  .kv {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 0;
+    color: #666;
+  }
+  .kv-val {
+    color: #1a1a1a;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<div class="calc">
+  <h3>SMD 编带芯片数量计算器</h3>
+  <div class="formula">N = π × (D + d) / 2 × W / Pitch</div>
+
+  <div class="input-group">
+    <label>圈数 W</label>
+    <input type="number" id="W" value="62" step="1">
+    <div class="hint">你数的圈数</div>
+  </div>
+
+  <div class="input-group">
+    <label>最内圈直径 d（mm）</label>
+    <input type="number" id="d" value="63.5" step="0.1">
+    <div class="hint">Hub 外径，7″盘≈63.5mm</div>
+  </div>
+
+  <div class="input-group">
+    <label>最外圈直径 D（mm）</label>
+    <input type="number" id="D" value="160" step="0.1">
+    <div class="hint">卡尺量最外层直径</div>
+  </div>
+
+  <div class="input-group">
+    <label>物料间距 Pitch（mm）</label>
+    <input type="number" id="Pitch" value="4" step="0.1">
+    <div class="hint">相邻芯片中心距，0603/0805/1206 通常 4mm；大封装可能 8/12/16mm</div>
+  </div>
+
+  <div class="result-box">
+    <div class="result-label">芯片数量</div>
+    <div>
+      <span class="result-value" id="N">—</span>
+      <span class="result-unit">颗</span>
+    </div>
+    <div class="result-sub" id="sub">—</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="kv">
+    <span>编带长度</span>
+    <span class="kv-val" id="L">—</span>
+  </div>
+  <div class="kv">
+    <span>平均周长</span>
+    <span class="kv-val" id="avg">—</span>
+  </div>
+  <div class="kv">
+    <span>反推编带厚度</span>
+    <span class="kv-val" id="T">—</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  const PI = Math.PI;
+
+  function get(id) {
+    const v = parseFloat(document.getElementById(id)?.value);
+    return isNaN(v) ? 0 : v;
+  }
+  function fmt(n, d) {
+    if (!isFinite(n) || isNaN(n)) return '—';
+    return n.toLocaleString('zh-CN', {maximumFractionDigits: d});
+  }
+
+  function calc() {
+    const W = get('W');
+    const d = get('d');
+    const D = get('D');
+    const pitch = get('Pitch');
+
+    let L = 0, avg = 0, T = 0, N = 0;
+    if (D > d && W > 0 && pitch > 0) {
+      avg = PI * (D + d) / 2;
+      L = avg * W;
+      N = L / pitch;
+      T = (D - d) / (2 * W);
+    }
+
+    document.getElementById('N').textContent = fmt(N, 0);
+    document.getElementById('L').textContent = fmt(L / 1000, 2) + ' m';
+    document.getElementById('avg').textContent = fmt(avg, 1) + ' mm';
+    document.getElementById('T').textContent = T > 0 ? fmt(T, 3) + ' mm' : '—';
+
+    const sub = document.getElementById('sub');
+    if (T > 0) {
+      if (T >= 0.5 && T <= 1.1) {
+        sub.textContent = '厚度合理（纸带）';
+        sub.className = 'result-sub ok';
+      } else if (T > 1.1 && T <= 1.6) {
+        sub.textContent = '厚度合理（塑料带）';
+        sub.className = 'result-sub ok';
+      } else {
+        sub.textContent = '厚度异常，请检查 d 或 D';
+        sub.className = 'result-sub bad';
+      }
+    } else {
+      sub.textContent = '—';
+      sub.className = 'result-sub';
+    }
+  }
+
+  document.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', calc);
+  });
+
+  calc();
+})();
+</script>
+
+</body>
+</html>
