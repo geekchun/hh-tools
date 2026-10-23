@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMD 编带芯片数量计算器（预设版）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .calc {
+    width: 100%;
+    max-width: 380px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  }
+  .calc h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+  .calc .formula {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 24px;
+    font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+    background: #f5f5f5;
+    padding: 10px 14px;
+    border-radius: 8px;
+    word-break: break-all;
+  }
+  .input-group {
+    margin-bottom: 16px;
+  }
+  .input-group label {
+    display: block;
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .input-group input,
+  .input-group select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    background: #fff;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-group select {
+    font-size: 14px;
+    padding: 11px 12px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+  }
+  .input-group select:focus,
+  .input-group input:focus {
+    border-color: #1a1a1a;
+  }
+  .input-group .hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+  }
+  .row .input-group {
+    flex: 1;
+    min-width: 0;
+  }
+  .result-box {
+    background: #f8f8f8;
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    margin-top: 24px;
+    border: 1px solid #e5e5e5;
+  }
+  .result-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+  .result-value {
+    font-size: 44px;
+    font-weight: 700;
+    color: #1a1a1a;
+    font-variant-numeric: tabular-nums;
+  }
+  .result-unit {
+    font-size: 16px;
+    color: #666;
+    margin-left: 4px;
+  }
+  .result-sub {
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .result-sub.ok { color: #2a9d4a; }
+  .result-sub.warn { color: #e67e22; }
+  .result-sub.bad { color: #e74c3c; }
+  .divider {
+    height: 1px;
+    background: #e5e5e5;
+    margin: 16px 0;
+  }
+  .kv {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 0;
+    color: #666;
+  }
+  .kv-val {
+    color: #1a1a1a;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<div class="calc">
+  <h3>SMD 编带芯片数量计算器（预设版）</h3>
+  <div class="formula">N = π × (D + d) / 2 × W / Pitch</div>
+
+  <div class="input-group">
+    <label>料盘规格（决定盘芯 d）</label>
+    <select id="reelSel"></select>
+    <div class="hint" id="reelHint"></div>
+  </div>
+
+  <div class="input-group" id="dInputGroup" style="display:none">
+    <label>盘芯直径 d（mm）</label>
+    <input type="number" id="d" value="63.5" step="0.1">
+    <div class="hint">Hub 外径</div>
+  </div>
+
+  <div class="input-group">
+    <label>物料剩余外径 D（mm）</label>
+    <input type="number" id="D" value="160" step="0.1">
+    <div class="hint">卡尺量剩余料卷最外层直径（不是料盘边缘）</div>
+  </div>
+
+  <div class="input-group">
+    <label>物料间距 Pitch</label>
+    <select id="pitchSel"></select>
+    <div class="hint" id="pitchHint">相邻芯片中心距</div>
+  </div>
+
+  <div class="input-group" id="pitchInput" style="display:none">
+    <label>物料间距 Pitch（mm）</label>
+    <input type="number" id="Pitch" value="4" step="0.1">
+  </div>
+
+  <div class="input-group">
+    <label>圈数 W</label>
+    <input type="number" id="W" value="62" step="1">
+    <div class="hint">你数的圈数</div>
+  </div>
+
+  <div class="result-box">
+    <div class="result-label">芯片数量</div>
+    <div>
+      <span class="result-value" id="N">—</span>
+      <span class="result-unit">颗</span>
+    </div>
+    <div class="result-sub" id="sub">—</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="kv">
+    <span>编带长度</span>
+    <span class="kv-val" id="L">—</span>
+  </div>
+  <div class="kv">
+    <span>平均周长</span>
+    <span class="kv-val" id="avg">—</span>
+  </div>
+  <div class="kv">
+    <span>反推编带厚度</span>
+    <span class="kv-val" id="T">—</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  const PI = Math.PI;
+  const CUSTOM = '__custom__';
+
+  // 常见料盘的盘芯（Hub）直径 d；D 为剩余物料实际外径，需手动测量
+  const REELS = [
+    { name: '7″ 盘 — 芯 Φ63.5（最常见）', d: 63.5 },
+    { name: '7″ 盘 — 芯 Φ60',             d: 60 },
+    { name: '10″ 盘 — 芯 Φ100',           d: 100 },
+    { name: '13″ 盘 — 芯 Φ100',           d: 100 },
+    { name: '15″ 盘 — 芯 Φ100',           d: 100 },
+    { name: '自定义…', custom: true }
+  ];
+
+  // EIA-481 常见载带间距（mm）
+  const PITCHES = [
+    { name: '2 mm — 0402 及以下小封装',  v: 2 },
+    { name: '4 mm — 0603 / 0805 / 1206 / SOT 等', v: 4 },
+    { name: '8 mm — SOIC / SOT-23 等',   v: 8 },
+    { name: '12 mm — SSOP / 较大 SOIC',  v: 12 },
+    { name: '16 mm — 大型 SOP',          v: 16 },
+    { name: '24 mm — 大封装',            v: 24 },
+    { name: '32 mm',                     v: 32 },
+    { name: '44 mm',                     v: 44 },
+    { name: '自定义…', custom: true }
+  ];
+
+  const reelSel = document.getElementById('reelSel');
+  const pitchSel = document.getElementById('pitchSel');
+
+  REELS.forEach((r, i) => {
+    const o = document.createElement('option');
+    o.value = r.custom ? CUSTOM : String(i);
+    o.textContent = r.name;
+    reelSel.appendChild(o);
+  });
+  PITCHES.forEach((p, i) => {
+    const o = document.createElement('option');
+    o.value = p.custom ? CUSTOM : String(i);
+    o.textContent = p.name;
+    pitchSel.appendChild(o);
+  });
+
+  function get(id) {
+    const v = parseFloat(document.getElementById(id)?.value);
+    return isNaN(v) ? 0 : v;
+  }
+  function fmt(n, d) {
+    if (!isFinite(n) || isNaN(n)) return '—';
+    return n.toLocaleString('zh-CN', {maximumFractionDigits: d});
+  }
+
+  function applyReel() {
+    const r = REELS[parseInt(reelSel.value, 10)];
+    const custom = !r || r.custom;
+    document.getElementById('dInputGroup').style.display = custom ? 'block' : 'none';
+    document.getElementById('reelHint').textContent = custom
+      ? '手动输入盘芯直径'
+      : `已内置盘芯 d = ${fmt(r.d, 1)} mm，外径需自己量`;
+    if (!custom) {
+      document.getElementById('d').value = r.d;
+      calc();
+    }
+  }
+  function applyPitch() {
+    const p = PITCHES[parseInt(pitchSel.value, 10)];
+    const custom = !p || p.custom;
+    document.getElementById('pitchInput').style.display = custom ? 'block' : 'none';
+    document.getElementById('pitchHint').textContent = custom
+      ? '手动输入相邻芯片中心距'
+      : '相邻芯片中心距';
+    if (!custom) {
+      document.getElementById('Pitch').value = p.v;
+      calc();
+    }
+  }
+
+  reelSel.addEventListener('change', applyReel);
+  pitchSel.addEventListener('change', applyPitch);
+
+  applyReel();
+  applyPitch();
+
+  function calc() {
+    const W = get('W');
+    const d = get('d');
+    const D = get('D');
+    const pitch = get('Pitch');
+
+    let L = 0, avg = 0, T = 0, N = 0;
+    if (D > d && W > 0 && pitch > 0) {
+      avg = PI * (D + d) / 2;
+      L = avg * W;
+      N = L / pitch;
+      T = (D - d) / (2 * W);
+    }
+
+    document.getElementById('N').textContent = fmt(N, 0);
+    document.getElementById('L').textContent = fmt(L / 1000, 2) + ' m';
+    document.getElementById('avg').textContent = fmt(avg, 1) + ' mm';
+    document.getElementById('T').textContent = T > 0 ? fmt(T, 3) + ' mm' : '—';
+
+    const sub = document.getElementById('sub');
+    if (T > 0) {
+      if (T >= 0.5 && T <= 1.1) {
+        sub.textContent = '厚度合理（纸带）';
+        sub.className = 'result-sub ok';
+      } else if (T > 1.1 && T <= 1.6) {
+        sub.textContent = '厚度合理（塑料带）';
+        sub.className = 'result-sub ok';
+      } else {
+        sub.textContent = '厚度异常，请检查 d 或 D';
+        sub.className = 'result-sub bad';
+      }
+    } else {
+      sub.textContent = '—';
+      sub.className = 'result-sub';
+    }
+  }
+
+  document.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', calc);
+  });
+
+  calc();
+})();
+</script>
+
+</body>
+</html>
